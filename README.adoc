@@ -1,0 +1,70 @@
+# MicroProfile LRA demo: DevConf 2019.cz
+
+This is a small demo project which shows
+basic capabilities of MicroProfile Long Running Action.
+That's specification based on the Saga pattern
+which is designed to provide transactional guarantees
+for microservice architecture.
+
+The LRA is based on HTTP-REST communication.
+It expects a LRA HTTP coordination endpoints to be available.
+In case of http://narayana.io[Narayana] implementation of the specification
+there is provided a LRA coordinator which manages the LRA lifecicle.
+Application enlists itself to the coordinator while
+exposing REST endpoints. The LRA coordinator uses those application's endpoints
+to inform about outcome of the LRA processing.
+
+Some more information about Narayana LRA processing could be found at article
+http://jbossts.blogspot.com/2017/12/narayana-lra-implementation-of-saga.html
+
+## How to run
+
+### LRA API compilation
+
+The https://github.com/eclipse/microprofile-lra[LRA specification] is not a finalized (January 2019).
+ The CR releases for testing are hopefully near from now. But for testing is necessary to build
+ snapshot in current days.
+
+* `git clone https://github.com/eclipse/microprofile-lra`
+* `cd microprofile-lra`
+* `mvn clean install`
+
+
+### Starting Narayana LRA coordinator
+
+As the LRA specification is only in a draft state there could be cases that is necessary
+to run the Narayana LRA coordinator as `SNAPSHOT` too. In such case you need to compile
+Narayana project in way
+
+* `git clone https://github.com/jbosstm/narayana.git`
+* `cd narayana`
+* `mvn clean install -DskipTests`
+* `java -jar rts/lra/lra-coordinator/target/lra-coordinator-swarm.jar`
+
+Otherwise the easiest way is to use the docker to run the coordinator
+(coordinator is under dockerhub at https://hub.docker.com/r/jbosstm/lra-coordinator).
+
+* `docker run -p 8080:8080 jbosstm/lra-coordinator`
+
+
+### Running this demo
+
+When LRA API is installed as maven dependency to local mvn repository
+and the coordinator is running you can run this demo app.
+The demo application starts as a Thorntail application which exposes
+several endpoints 
+
+* `git clone https://github.com/ochaloup/devconf2019-lra.git`
+* `cd devconf2019-lra`
+* `mvn package`
+* `java -jar target/..`
+
+
+## Communicating with coordinator with `curl` commands
+
+To get coordinoator API you can download Swagger JSON by calling
+http://localhost:8080/swagger.json
+Or you can ckeck  
+https://github.com/ochaloup/narayana/blob/swagger-json/rts/lra/lra-coordinator/swagger.json[github#ochaloup/narayana:swagger-json])
+for some older version of the API represented by the Swagger JSON.
+
