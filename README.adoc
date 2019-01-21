@@ -46,6 +46,10 @@ Otherwise the easiest way is to use the docker to run the coordinator
 
 * `docker run -p 8080:8080 jbosstm/lra-coordinator`
 
+To run coordinator with showing `debug`/`trace` messages run with
+`-Dswarm.logging=DEBUG` in case of `java -jar` command or
+set environment variable `-e LOG_LEVEL="DEBUG"`.
+
 
 ### Running this demo
 
@@ -65,6 +69,36 @@ several endpoints
 To get coordinoator API you can download Swagger JSON by calling
 http://localhost:8080/swagger.json
 Or you can ckeck  
-https://github.com/ochaloup/narayana/blob/swagger-json/rts/lra/lra-coordinator/swagger.json[github#ochaloup/narayana:swagger-json])
+https://raw.githubusercontent.com/ochaloup/narayana/swagger-json/rts/lra/lra-coordinator/swagger.json[https://github.com/ochaloup/narayana/blob/swagger-json/rts/lra/lra-coordinator/swagger.json]
 for some older version of the API represented by the Swagger JSON.
+
+NOTE: for verification that there is sent data back from coordinator to client service
+      you can use some simple HTTP server showing what it gets. For example `http-echo-server`.
+      ```
+      npm install http-echo-server -g
+      PORT=8081 http-echo-server
+      ```
+
+### Starting LRA
+
+`curl -i -XPOST http://localhost:8080/lra-coordinator/start?clientID=1`
+
+will return the LRA ID as body of the response. It's in form of URI.
+It could be for example `http://localhost:8080/lra-coordinator/0_ffffac110002_-1c1af658_5c45b21d_41`.
+
+### List All active LRAs
+
+`curl -i -XGET http://localhost:8080/lra-coordinator/`
+
+### Enlisting a participant microservice to LRA
+
+`curl -i -XPUT http://localhost:8080/lra-coordinator/0_ffffac110002_-23367453_5c45d7d0_11 --data "http://localhost:8081"`
+
+which will enlist participant at path `http://localhost:8081` expecting the participant exposes
+endpoinds `/compensate`, `/complete` and `/status`.
+
+Or you can define the endpoints particularly by using `Link` header.
+
+`curl -i -XPUT http://localhost:8080/lra-coordinator/0_ffffac110002_-23367453_5c45d7d0_11 \
+  -H '<http://localhost:8081/leave>; rel="leave"; title="leave-linkh URI"; type="text/plain",<http://localhost:8081/complete-linkh>; rel="complete"; title="complete URI"; type="text/plain",<http://localhost:8081/compensate-linkh>; rel="compensate"; title="compensate URI"; type="text/plain",<http://localhost:8081/status-linkh>; rel="status"; title="status URI"; type="text/plain"'`
 
