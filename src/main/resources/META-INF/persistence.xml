@@ -3,6 +3,7 @@
 
   <persistence-unit name="FlightDS" transaction-type="JTA">
     <class>io.narayana.demo.lra.devconf2019.jpa.Flight</class>
+    <class>io.narayana.demo.lra.devconf2019.jpa.Booking</class>
     <properties>
       <property name="javax.persistence.jdbc.driver" value="org.h2.Driver" />
       <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:flights" />

@@ -25,7 +25,7 @@ public class StartUp {
     private String pathToCsvInitFile;
 
     @Inject
-    private FlightManagement flighthManagement;
+    private FlightManager flighthManagement;
 
     public void init(@Observes @Initialized(ApplicationScoped.class) Object init) {
         log.debug("startup routine was succesfully initialized");

@@ -7,39 +7,65 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 
 @Entity
-@Table(name = "FLIGHTS_BOOKING")
-public class FlightBooking implements Serializable {
+@Table(name = "BOOKINGS")
+@NamedQueries({
+    @NamedQuery(name="Booking.findAll", query="SELECT fb FROM Booking fb")
+})
+public class Booking implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "flight_id")
     private Flight flight;
 
     private String name;
+    private BookingStatus status = BookingStatus.BOOKED;
+    
+    public int getId() {
+        return id;
+    }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public Booking setName(String name) {
         this.name = name;
+        return this;
     }
 
-    public int getId() {
-        return id;
+    public Flight getFlight() {
+        return flight;
+    }
+
+    public Booking setFlight(Flight flight) {
+        this.flight = flight;
+        return this;
+    }
+
+    public BookingStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(BookingStatus status) {
+        this.status = status;
     }
 
     @Override
     public String toString() {
-        return String.format("[%d] passenger name: %s, go by flight: '%d,%s'",
-                id, name, flight.getId(), flight.getDateFormated());
+        return String.format("[%d] passenger name: %s, go by flight: '%d,%s', booking status: %s",
+                id, name, flight.getId(), flight.getDateFormated(), status);
     }
 
     @Override
@@ -60,7 +86,7 @@ public class FlightBooking implements Serializable {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        FlightBooking other = (FlightBooking) obj;
+        Booking other = (Booking) obj;
         if (flight == null) {
             if (other.flight != null)
                 return false;
@@ -75,6 +101,5 @@ public class FlightBooking implements Serializable {
             return false;
         return true;
     }
-
     
 }

@@ -2,20 +2,25 @@ package io.narayana.demo.lra.devconf2019.jpa;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "FLIGHTS")
 @NamedQueries({
-    @NamedQuery(name="Flight.findAll", query="SELECT f FROM Flight f")
+    @NamedQuery(name="Flight.findAll", query="SELECT f FROM Flight f"),
+    @NamedQuery(name="Flight.findByDate", query="SELECT f FROM Flight f WHERE f.date = :date")
 })
 public class Flight implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -24,6 +29,9 @@ public class Flight implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "flight")
+    private List<Booking> bookings = new ArrayList<>();
 
     private Date date;
     private int numberOfSeats, bookedSeats;

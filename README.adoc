@@ -66,12 +66,25 @@ several endpoints
 NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooked`
       and those data is loaded during app startup
 
-#### Using REST endpoints in demo
+#### Using REST endpoints for Flight
 
 `curl -D -i -XGET http://localhost:8080/flights/all | jq`::
   show all available flights
 `curl -D -i -XGET http://localhost:8080/flights/2 | jq`::
   get flight entity searched by its id
+`curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/flights/add --data '{"date":"2018-01-31", "numberOfSeats":100, "bookedSeats": 99}'`::
+  adding new flight to database
+`curl -i -XDELETE http://localhost:8080/flights/2`::
+  delete the flight from database
+`curl -i -XGET http://localhost:8080/flights/date/2018-01-03`::
+  searching for flight by a date
+
+#### Using REST endpoints for Booking
+
+`curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book --data '{"date":"2018-01-01", "name": "Franta Vomacka"}'`::
+  book a flight
+`curl -i -XGET http://localhost:8080/book/all`::
+  get all bookings
 
 
 ## Communicating with coordinator with `curl` commands
@@ -118,6 +131,11 @@ Or you can define the endpoints particularly by using `Link` header.
 curl -i -XPUT  http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_f \
   -H 'Link:<http://localhost:8081/leave-linkh>; rel="leave"; title="leave URI"; type="text/plain",<http://localhost:8081/complete-linkh>; rel="complete"; title="complete URI"; type="text/plain",<http://localhost:8081/compensate-linkh>; rel="compensate"; title="compensate URI"'
 ```
+
+The `complete`, `compensate` endpoints is expected to listen to `PUT` requests. The coordinator provides HTTP header `Long-Running-Action`
+which contains the LRA id that can be used by the participant for the purpose it needs.
+If participants provide some data in body during the `enlist` call then this data will be returned in body
+on the call of `compensate` and `complete`.
 
 To call finish the LRA you can use call either to `close` which informs the coordinator to finish LRA with success (aka. all participants will be called on `complete` endpoint), or you can call cancel
 which informs about LRA failure (aka. all participants will be called on `compensate` endpoint).
