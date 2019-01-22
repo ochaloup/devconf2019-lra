@@ -99,6 +99,19 @@ endpoinds `/compensate`, `/complete` and `/status`.
 
 Or you can define the endpoints particularly by using `Link` header.
 
-`curl -i -XPUT http://localhost:8080/lra-coordinator/0_ffffac110002_-23367453_5c45d7d0_11 \
-  -H '<http://localhost:8081/leave>; rel="leave"; title="leave-linkh URI"; type="text/plain",<http://localhost:8081/complete-linkh>; rel="complete"; title="complete URI"; type="text/plain",<http://localhost:8081/compensate-linkh>; rel="compensate"; title="compensate URI"; type="text/plain",<http://localhost:8081/status-linkh>; rel="status"; title="status URI"; type="text/plain"'`
+ ```
+curl -i -XPUT  http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_f \
+  -H 'Link:<http://localhost:8081/leave-linkh>; rel="leave"; title="leave URI"; type="text/plain",<http://localhost:8081/complete-linkh>; rel="complete"; title="complete URI"; type="text/plain",<http://localhost:8081/compensate-linkh>; rel="compensate"; title="compensate URI"'
+ ```
+
+To call finish the LRA you can use call either to `close` which informs the coordinator to finish LRA with success (aka. all participants will be called on `complete` endpoint), or you can call cancel
+which informs about LRA failure (aka. all participants will be called on `compensate` endpoint).
+
+* `curl -i -XPUT http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/close`
+* `curl -i -XPUT http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/cancel`
+
+To find out status of LRA use `/status` `GET` call to coordinator like
+
+`curl -i -XGET http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/status`
+
 
