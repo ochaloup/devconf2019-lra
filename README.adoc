@@ -61,7 +61,17 @@ several endpoints
 * `git clone https://github.com/ochaloup/devconf2019-lra.git`
 * `cd devconf2019-lra`
 * `mvn package`
-* `java -jar target/..`
+* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dinit.csv=./flight.data`
+
+NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooked`
+      and those data is loaded during app startup
+
+#### Using REST endpoints in demo
+
+`curl -D -i -XGET http://localhost:8080/flights/all | jq`::
+  show all available flights
+`curl -D -i -XGET http://localhost:8080/flights/2 | jq`::
+  get flight entity searched by its id
 
 
 ## Communicating with coordinator with `curl` commands
@@ -72,12 +82,17 @@ Or you can ckeck
 https://raw.githubusercontent.com/ochaloup/narayana/swagger-json/rts/lra/lra-coordinator/swagger.json[https://github.com/ochaloup/narayana/blob/swagger-json/rts/lra/lra-coordinator/swagger.json]
 for some older version of the API represented by the Swagger JSON.
 
-NOTE: for verification that there is sent data back from coordinator to client service
-      you can use some simple HTTP server showing what it gets. For example `http-echo-server`.
-      ```
-      npm install http-echo-server -g
-      PORT=8081 http-echo-server
-      ```
+[NOTE]
+====
+For verification that there is sent data back from coordinator to client service
+you can use some simple HTTP server showing what it gets. For example `http-echo-server`.
+
+```
+npm install http-echo-server -g
+PORT=8081 http-echo-server
+```
+
+====
 
 ### Starting LRA
 
@@ -99,10 +114,10 @@ endpoinds `/compensate`, `/complete` and `/status`.
 
 Or you can define the endpoints particularly by using `Link` header.
 
- ```
+```
 curl -i -XPUT  http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_f \
   -H 'Link:<http://localhost:8081/leave-linkh>; rel="leave"; title="leave URI"; type="text/plain",<http://localhost:8081/complete-linkh>; rel="complete"; title="complete URI"; type="text/plain",<http://localhost:8081/compensate-linkh>; rel="compensate"; title="compensate URI"'
- ```
+```
 
 To call finish the LRA you can use call either to `close` which informs the coordinator to finish LRA with success (aka. all participants will be called on `complete` endpoint), or you can call cancel
 which informs about LRA failure (aka. all participants will be called on `compensate` endpoint).
@@ -113,5 +128,4 @@ which informs about LRA failure (aka. all participants will be called on `compen
 To find out status of LRA use `/status` `GET` call to coordinator like
 
 `curl -i -XGET http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/status`
-
 

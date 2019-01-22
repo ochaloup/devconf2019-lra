@@ -9,9 +9,14 @@
   <packaging>war</packaging>
 
   <properties>
+    <version.jboss.logging>3.3.2.Final</version.jboss.logging>
+    <version.lra.api>1.0-SNAPSHOT</version.lra.api>
+    <version.narayana>5.9.2.Final</version.narayana>
     <version.thorntail>2.3.0.Final</version.thorntail>
+
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
+
     <failOnMissingWebXml>false</failOnMissingWebXml>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -29,13 +34,12 @@
   </dependencyManagement>
 
   <build>
-    <finalName>demo</finalName>
+    <finalName>devconf2019-flightbooking</finalName>
     <plugins>
       <plugin>
         <groupId>io.thorntail</groupId>
         <artifactId>thorntail-maven-plugin</artifactId>
         <version>${version.thorntail}</version>
-        
         <executions>
           <execution>
             <goals>
@@ -52,9 +56,50 @@
     <dependency>
       <groupId>io.thorntail</groupId>
       <artifactId>microprofile-config</artifactId>
-    </dependency><dependency>
+    </dependency>
+    <dependency>
       <groupId>io.thorntail</groupId>
       <artifactId>jaxrs</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.thorntail</groupId>
+      <artifactId>jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.thorntail</groupId>
+      <artifactId>swagger</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jboss.logging</groupId>
+      <artifactId>jboss-logging</artifactId>
+      <version>${version.jboss.logging}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hibernate.javax.persistence</groupId>
+      <artifactId>hibernate-jpa-2.1-api</artifactId>
+      <version>1.0.0.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>1.4.187</version>
+    </dependency>
+
+    <!-- LRA -->
+    <dependency>
+      <groupId>org.eclipse.microprofile.lra</groupId>
+      <artifactId>microprofile-lra-api</artifactId>
+      <version>${version.lra.api}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.narayana.rts</groupId>
+      <artifactId>lra-client</artifactId>
+      <version>${version.narayana}</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>
