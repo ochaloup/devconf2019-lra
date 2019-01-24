@@ -20,7 +20,7 @@ import javax.persistence.Table;
 @Table(name = "FLIGHTS")
 @NamedQueries({
     @NamedQuery(name="Flight.findAll", query="SELECT f FROM Flight f"),
-    @NamedQuery(name="Flight.findByDate", query="SELECT f FROM Flight f WHERE f.date = :date")
+    @NamedQuery(name="Flight.findByDate", query="SELECT f FROM Flight f WHERE f.date = :date"),
 })
 public class Flight implements Serializable {
     private static final long serialVersionUID = 1L;

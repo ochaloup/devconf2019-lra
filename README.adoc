@@ -39,7 +39,7 @@ Narayana project in way
 * `git clone https://github.com/jbosstm/narayana.git`
 * `cd narayana`
 * `mvn clean install -DskipTests`
-* `java -jar rts/lra/lra-coordinator/target/lra-coordinator-swarm.jar`
+* `java -jar rts/lra/lra-coordinator/target/lra-coordinator-swarm.jar -Dswarm.http.port=8180`
 
 Otherwise the easiest way is to use the docker to run the coordinator
 (coordinator is under dockerhub at https://hub.docker.com/r/jbosstm/lra-coordinator).
@@ -61,7 +61,7 @@ several endpoints
 * `git clone https://github.com/ochaloup/devconf2019-lra.git`
 * `cd devconf2019-lra`
 * `mvn package`
-* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dinit.csv=./flight.data`
+* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dinit.csv=./flight.data -Dlra.http.host=localhost -Dlra.http.port=8180`
 
 NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooked`
       and those data is loaded during app startup
@@ -88,6 +88,9 @@ NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooke
 
 
 ## Communicating with coordinator with `curl` commands
+
+NOTE: expecting the coordinator is started at port `8180`. Either with docker `-p 8180:8080`
+      or by WildFly Swarm port definition `swarm.http.port`
 
 To get coordinoator API you can download Swagger JSON by calling
 http://localhost:8080/swagger.json

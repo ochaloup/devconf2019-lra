@@ -20,9 +20,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.eclipse.microprofile.lra.annotation.Compensate;
+import org.eclipse.microprofile.lra.annotation.CompensatorStatus;
 import org.eclipse.microprofile.lra.annotation.Complete;
+import org.eclipse.microprofile.lra.annotation.LRA;
 import org.eclipse.microprofile.lra.client.LRAClient;
 import org.jboss.logging.Logger;
 
@@ -32,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.narayana.demo.lra.devconf2019.BookingManager;
 import io.narayana.demo.lra.devconf2019.FlightManager;
 import io.narayana.demo.lra.devconf2019.jpa.Booking;
+import io.narayana.demo.lra.devconf2019.jpa.BookingStatus;
 import io.narayana.demo.lra.devconf2019.jpa.Flight;
 
 
@@ -45,35 +49,56 @@ public class FlightBookingService {
     @Inject
     private FlightManager flightManager;
 
+    @Inject
+    private LRAClient lraClient;
+
+    @LRA(cancelOn = Status.NOT_FOUND)
     @POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response book(String jsonData) {
-	    Map<String,String> jsonMap = parseJson(jsonData);
+        log.infof("Booking with data '%s' as part of LRA id '%s'",
+                jsonData, lraClient.getCurrent().toExternalForm());
 
-	    if(jsonMap.get("date") == null || jsonMap.get("name") == null) {
-            throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
-                    .entity(String.format("Invalid format of json data '%s' as does not contain fields 'date' and/or 'name'", jsonData))
-                    .type("text/plain").build());
-	    }
-
-        Date parsedDate = FlightManagementService.parseDate(jsonMap.get("date"));
-        List<Flight> foundFlights = flightManager.findByDate(parsedDate);
-        if(foundFlights == null || foundFlights.isEmpty()) {
-            throw new NotFoundException(String.format("No flight at date '%s' is available", parsedDate));
-        }
-
-        Optional<Flight> matchingFlight = foundFlights.stream()
-                .filter(f -> f.getNumberOfSeats() > f.getBookedSeats()).findFirst();
-        if(!matchingFlight.isPresent()) {
-            throw new NotFoundException("There is no flight which would not be already occupied at the date " + parsedDate);
-        }
+        Map<String,String> jsonMap = parseJson(jsonData);
+        Flight matchingFlight = findMatchingFlightForBooking(jsonMap);
 
         Booking booking = new Booking()
-                .setFlight(matchingFlight.get())
-                .setName(jsonMap.get("name"));
+                .setFlight(matchingFlight)
+                .setName(jsonMap.get("name"))
+                .setLraId(lraClient.getCurrent().toExternalForm());
         bookingManager.save(booking);
+
 		return Response.ok().entity(booking.getId()).build();
 	}
+    
+    @LRA(end = false)
+    @POST
+    @Path("/confirm")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response bookWithConfirmation(String jsonData) {
+        return this.book(jsonData);
+    }
+
+    @PUT
+    @Path("/complete")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Complete
+    public Response completeWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
+        boolean wasBooked = confirmBooking(lraId);
+        log.infof("LRA ID '%s' complete call called", lraId);
+        CompensatorStatus completeStatus = wasBooked ? CompensatorStatus.Completed : CompensatorStatus.FailedToComplete;
+        return Response.ok(completeStatus.name()).build();
+    }
+
+    @PUT
+    @Path("/compensate")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Compensate
+    public Response compensateWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
+        undoBooking(lraId);
+        log.warnf("LRA ID '%s' was compensated", lraId);
+        return Response.ok().build();
+    }
 
     @Path("/all")
     @GET
@@ -82,26 +107,6 @@ public class FlightBookingService {
         List<Booking> allBookings = bookingManager.getAllBookings();
         if(log.isDebugEnabled()) log.debugf("All flights: %s", allBookings);
         return Response.ok().entity(allBookings).build();
-    }
-
-    @PUT
-    @Path("/complete")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Complete
-    public Response completeWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
-        // service.get(lraId).setStatus(Booking.BookingStatus.CONFIRMED);
-        // return Response.ok(service.get(lraId).toJson()).build();
-        return Response.ok().build();
-    }
-
-    @PUT
-    @Path("/compensate")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Compensate
-    public Response compensateWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
-        // service.get(lraId).setStatus(Booking.BookingStatus.CANCELLED);
-        // return Response.ok(service.get(lraId).toJson()).build();
-        return Response.ok().build();
     }
 
     @SuppressWarnings("unchecked")
@@ -116,6 +121,58 @@ public class FlightBookingService {
             throw new WebApplicationException(ioe, Response.status(Response.Status.PRECONDITION_FAILED)
                     .entity(String.format("Cannot parse the provided body '%s' to JSON format", jsonData))
                     .type("text/plain").build());
+        }
+    }
+
+    private Flight findMatchingFlightForBooking(Map<String,String> jsonMap) {
+        if(jsonMap.get("date") == null || jsonMap.get("name") == null) {
+            throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
+                    .entity(String.format("Invalid format of json data '%s' as does not contain fields 'date' and/or 'name'", jsonMap))
+                    .type("text/plain").build());
+        }
+
+        Date parsedDate = FlightManagementService.parseDate(jsonMap.get("date"));
+        List<Flight> foundFlights = flightManager.getByDate(parsedDate);
+        if(foundFlights == null || foundFlights.isEmpty()) {
+            throw new NotFoundException(String.format("No flight at date '%s' is available", parsedDate));
+        }
+
+        Optional<Flight> matchingFlight = foundFlights.stream()
+                .filter(f -> f.getNumberOfSeats() > f.getBookedSeats()).findFirst();
+        if(!matchingFlight.isPresent()) {
+            throw new NotFoundException("There is no flight which would not be already occupied at the date " + parsedDate);
+        }
+
+        return matchingFlight.get();
+    }
+
+    private boolean confirmBooking(String lraId) {
+        boolean wasSuccesful = true;
+        List<Booking> byLraBookings = bookingManager.getByLraId(lraId);
+        for(Booking booking: byLraBookings) {
+            booking.setStatus(BookingStatus.BOOKED);
+            int bookedSeats = booking.getFlight().getBookedSeats();
+            int availableSeats = booking.getFlight().getNumberOfSeats();
+
+            if(bookedSeats + 1 > availableSeats) {
+                log.errorf("Cannot finish booking '%s' for LRA '%s'. The flight '%s' is already full.",
+                        booking, lraId, booking.getFlight());
+                wasSuccesful = false;
+            }
+
+            flightManager.update(booking.getFlight().setBookedSeats(bookedSeats + 1));
+            bookingManager.update(booking);
+            log.infof("Confirmed booking: '%s'", booking);
+        }
+        return wasSuccesful;
+    }
+
+    private void undoBooking(String lraId) {
+        List<Booking> byLraBookings = bookingManager.getByLraId(lraId);
+        for(Booking booking: byLraBookings) {
+            booking.setStatus(BookingStatus.CANCELED);
+            bookingManager.update(booking);
+            log.infof("Undone booking: '%s'", booking);
         }
     }
 }

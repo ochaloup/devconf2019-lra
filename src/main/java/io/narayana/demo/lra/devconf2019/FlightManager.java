@@ -20,6 +20,10 @@ public class FlightManager {
         em.persist(flight);
     }
 
+    public void update(Flight flight) {
+        em.merge(flight);
+    }
+
     public void delete(Flight flight) {
         flight = em.merge(flight);
         em.remove(flight);
@@ -35,7 +39,7 @@ public class FlightManager {
     }
 
     @SuppressWarnings("unchecked")
-    public List<Flight> findByDate(Date date) {
+    public List<Flight> getByDate(Date date) {
         return em.createNamedQuery("Flight.findByDate")
             .setParameter("date", date)
             .getResultList();

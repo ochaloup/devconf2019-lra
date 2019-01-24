@@ -19,12 +19,19 @@ public class BookingManager {
         em.persist(booking);
     }
 
+    public void update(Booking booking) {
+        em.merge(booking);
+    }
+
     @SuppressWarnings("unchecked")
     public List<Booking> getAllBookings() {
         return em.createNamedQuery("Booking.findAll").getResultList();
     }
 
-    public void createBooking(Booking booking) {
-        em.persist(booking);
+    @SuppressWarnings("unchecked")
+    public List<Booking> getByLraId(String lraId) {
+        return em.createNamedQuery("Booking.findByLraId")
+            .setParameter("lraId", lraId)
+            .getResultList();
     }
 }

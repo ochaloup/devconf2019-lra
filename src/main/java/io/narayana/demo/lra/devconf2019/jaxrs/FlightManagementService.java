@@ -57,7 +57,7 @@ public class FlightManagementService {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getFlightByDate(@PathParam("date") String date) {
         Date toFindDate = parseDate(date);
-        List<Flight> byDateflights = management.findByDate(toFindDate);
+        List<Flight> byDateflights = management.getByDate(toFindDate);
         log.debugf("On requested date '%s' found flights '%s'", date, byDateflights);
         return Response.ok().entity(byDateflights).build();
     }

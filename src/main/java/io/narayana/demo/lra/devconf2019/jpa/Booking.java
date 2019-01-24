@@ -16,7 +16,8 @@ import javax.persistence.Table;
 @Entity
 @Table(name = "BOOKINGS")
 @NamedQueries({
-    @NamedQuery(name="Booking.findAll", query="SELECT fb FROM Booking fb")
+    @NamedQuery(name="Booking.findAll", query="SELECT b FROM Booking b"),
+    @NamedQuery(name="Booking.findByLraId", query="SELECT b FROM Booking b WHERE b.lraId = :lraId")
 })
 public class Booking implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -30,7 +31,8 @@ public class Booking implements Serializable {
     private Flight flight;
 
     private String name;
-    private BookingStatus status = BookingStatus.BOOKED;
+    private BookingStatus status = BookingStatus.IN_PROGRESS;
+    private String lraId;
     
     public int getId() {
         return id;
@@ -60,6 +62,15 @@ public class Booking implements Serializable {
 
     public void setStatus(BookingStatus status) {
         this.status = status;
+    }
+
+    public String getLraId() {
+        return lraId;
+    }
+
+    public Booking setLraId(String lraId) {
+        this.lraId = lraId;
+        return this;
     }
 
     @Override
@@ -101,5 +112,4 @@ public class Booking implements Serializable {
             return false;
         return true;
     }
-    
 }
