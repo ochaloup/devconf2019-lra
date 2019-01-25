@@ -1,5 +1,15 @@
 # MicroProfile LRA demo: DevConf 2019.cz
 
+# Quickie...
+
+* `docker run -p 8080:8080 docker.io/ochaloup/lra-coordinator:devconf2019`
+* `docker run -e TARGET_CALL='http://localhost:8888' -p 8180:8080 docker.io/ochaloup/devconf2019`
+
+# notes
+
+* to access docker to localhots: `--add-host="localhost:192.168.65.1"`
+* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dthorntail.http.port=8180 -Dtarget.call=http://localhost:8888 -Dlra.http.host=localhost -Dlra.http.port=8080 -Dswarm.bind.address=10.200.138.81`
+
 This is a small demo project which shows
 basic capabilities of MicroProfile Long Running Action.
 That's specification based on the Saga pattern

@@ -21,7 +21,7 @@ import io.narayana.demo.lra.devconf2019.jpa.Flight;
 public class StartUp {
     private static final Logger log = Logger.getLogger(StartUp.class);
 
-    @Inject @ConfigProperty(name = "init.csv")
+    @Inject @ConfigProperty(name = "init.csv", defaultValue = "")
     private String pathToCsvInitFile;
 
     @Inject
@@ -29,7 +29,7 @@ public class StartUp {
 
     public void init(@Observes @Initialized(ApplicationScoped.class) Object init) {
         log.debug("startup routine was succesfully initialized");
-        if(pathToCsvInitFile != null) {
+        if(pathToCsvInitFile != null && !pathToCsvInitFile.isEmpty()) {
             log.infof("Going to load data from CSV file at '%s'", pathToCsvInitFile);
             loadCsv(pathToCsvInitFile);
         }

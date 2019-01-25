@@ -18,10 +18,13 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.lra.annotation.Compensate;
 import org.eclipse.microprofile.lra.annotation.CompensatorStatus;
 import org.eclipse.microprofile.lra.annotation.Complete;
@@ -52,10 +55,24 @@ public class FlightBookingService {
     @Inject
     private LRAClient lraClient;
 
+    @Inject @ConfigProperty(name = "target.call")
+    private String targetCall;
+
+    @LRA
+    @POST
+    public Response book() {
+        log.infof("Making booking with LRA id '%s' and calling '%s'",
+                lraClient.getCurrent().toExternalForm(), targetCall);
+        Response r = ClientBuilder.newClient().target(targetCall)
+                .request(MediaType.TEXT_PLAIN).post(Entity.text("ahoj"));
+        return Response.ok().entity(r.getEntity()).build();
+    }
+
     @LRA(cancelOn = Status.NOT_FOUND)
     @POST
+    @Path("/create")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response book(String jsonData) {
+	public Response createBooking(String jsonData) {
         log.infof("Booking with data '%s' as part of LRA id '%s'",
                 jsonData, lraClient.getCurrent().toExternalForm());
 
@@ -73,9 +90,9 @@ public class FlightBookingService {
     
     @LRA(end = false)
     @POST
-    @Path("/confirm")
+    @Path("/create-and-confirm")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response bookWithConfirmation(String jsonData) {
+    public Response createBookingAndConfirm(String jsonData) {
         return this.book(jsonData);
     }
 
