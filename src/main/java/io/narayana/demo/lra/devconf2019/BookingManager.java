@@ -23,6 +23,10 @@ public class BookingManager {
         em.merge(booking);
     }
 
+    public Booking get(int id) {
+        return em.find(Booking.class, id);
+    }
+
     @SuppressWarnings("unchecked")
     public List<Booking> getAllBookings() {
         return em.createNamedQuery("Booking.findAll").getResultList();

@@ -21,7 +21,7 @@ import io.narayana.demo.lra.devconf2019.jpa.Flight;
 public class StartUp {
     private static final Logger log = Logger.getLogger(StartUp.class);
 
-    @Inject @ConfigProperty(name = "init.csv", defaultValue = "")
+    @Inject @ConfigProperty(name = "init.csv")
     private String pathToCsvInitFile;
 
     @Inject

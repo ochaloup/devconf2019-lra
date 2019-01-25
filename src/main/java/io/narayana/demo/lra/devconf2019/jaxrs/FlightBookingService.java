@@ -45,6 +45,7 @@ import io.narayana.demo.lra.devconf2019.jpa.Flight;
 @Path("/book")
 public class FlightBookingService {
     private static final Logger log = Logger.getLogger(FlightBookingService.class);
+    private static volatile int counter = 1;
 
     @Inject
     private BookingManager bookingManager;
@@ -55,17 +56,31 @@ public class FlightBookingService {
     @Inject
     private LRAClient lraClient;
 
-    @Inject @ConfigProperty(name = "target.call")
+    @Inject @ConfigProperty(name = "target.call", defaultValue = "")
     private String targetCall;
 
-    @LRA
+    @LRA(cancelOn = Status.NOT_FOUND)
     @POST
-    public Response book() {
+    @Path("/")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response book(String jsonData) {
         log.infof("Making booking with LRA id '%s' and calling '%s'",
                 lraClient.getCurrent().toExternalForm(), targetCall);
-        Response r = ClientBuilder.newClient().target(targetCall)
-                .request(MediaType.TEXT_PLAIN).post(Entity.text("ahoj"));
-        return Response.ok().entity(r.getEntity()).build();
+
+        Flight flight = flightManager.getByDate(FlightManagementService.parseDate("2019-01-27")).get(0);
+        Booking booking = new Booking()
+                .setFlight(flight)
+                .setName("The great guy " + (counter++))
+                .setLraId(lraClient.getCurrent().toExternalForm());
+        bookingManager.save(booking);
+        log.infof("Booking '%s' was created", booking);
+
+        if(targetCall != null && !targetCall.isEmpty()) {
+            Response r = ClientBuilder.newClient().target(targetCall)
+                    .request(MediaType.TEXT_PLAIN).post(Entity.text("book me!"));
+        }
+
+        return Response.ok(booking.getId()).build();
     }
 
     @LRA(cancelOn = Status.NOT_FOUND)
@@ -88,19 +103,12 @@ public class FlightBookingService {
 		return Response.ok().entity(booking.getId()).build();
 	}
     
-    @LRA(end = false)
-    @POST
-    @Path("/create-and-confirm")
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Response createBookingAndConfirm(String jsonData) {
-        return this.book(jsonData);
-    }
-
     @PUT
     @Path("/complete")
     @Produces(MediaType.APPLICATION_JSON)
     @Complete
     public Response completeWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
+        log.info("Completing...");
         boolean wasBooked = confirmBooking(lraId);
         log.infof("LRA ID '%s' complete call called", lraId);
         CompensatorStatus completeStatus = wasBooked ? CompensatorStatus.Completed : CompensatorStatus.FailedToComplete;
@@ -112,6 +120,7 @@ public class FlightBookingService {
     @Produces(MediaType.APPLICATION_JSON)
     @Compensate
     public Response compensateWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
+        log.info("Compensating...");
         undoBooking(lraId);
         log.warnf("LRA ID '%s' was compensated", lraId);
         return Response.ok().build();
@@ -151,12 +160,14 @@ public class FlightBookingService {
         Date parsedDate = FlightManagementService.parseDate(jsonMap.get("date"));
         List<Flight> foundFlights = flightManager.getByDate(parsedDate);
         if(foundFlights == null || foundFlights.isEmpty()) {
+            log.errorf("No flight at date '%s' is available", parsedDate);
             throw new NotFoundException(String.format("No flight at date '%s' is available", parsedDate));
         }
 
         Optional<Flight> matchingFlight = foundFlights.stream()
                 .filter(f -> f.getNumberOfSeats() > f.getBookedSeats()).findFirst();
         if(!matchingFlight.isPresent()) {
+            log.errorf("There is no flight which would not be already occupied at the date '%s'", parsedDate);
             throw new NotFoundException("There is no flight which would not be already occupied at the date " + parsedDate);
         }
 
