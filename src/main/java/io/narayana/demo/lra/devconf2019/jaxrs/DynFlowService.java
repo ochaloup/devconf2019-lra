@@ -34,6 +34,7 @@ public class DynFlowService {
         Flight flight = flightManager.getByDate(FlightManagementService.parseDate("2019-01-27")).get(0);
         Booking booking = new Booking()
                 .setFlight(flight)
+                .setStatus(BookingStatus.BOOKED);
                 .setName("The great guy " + (nameCounter++));
         bookingManager.save(booking);
         log.infof("Created booking: '%s'", booking);
@@ -47,8 +48,8 @@ public class DynFlowService {
     public Response compensate(@PathParam("id") String bookingId) {
         int id = Integer.parseInt(bookingId);
         Booking booking = bookingManager.get(id);
-        log.infof("Compensating booking with id '%s' of id '%d'", booking, id);
         booking.setStatus(BookingStatus.CANCELED);
+        log.infof("Compensating booking with id '%s' of id '%d'", booking, id);
         bookingManager.update(booking);
         return Response.ok("compensated").build();
     }

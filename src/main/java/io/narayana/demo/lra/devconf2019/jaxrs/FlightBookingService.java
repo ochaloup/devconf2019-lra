@@ -62,7 +62,7 @@ public class FlightBookingService {
     @LRA(cancelOn = Status.NOT_FOUND)
     @POST
     @Path("/")
-    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public Response book(String jsonData) {
         log.infof("Making booking with LRA id '%s' and calling '%s'",
                 lraClient.getCurrent().toExternalForm(), targetCall);
@@ -83,6 +83,7 @@ public class FlightBookingService {
         return Response.ok(booking.getId()).build();
     }
 
+    /*
     @LRA(cancelOn = Status.NOT_FOUND)
     @POST
     @Path("/create")
@@ -102,6 +103,7 @@ public class FlightBookingService {
 
 		return Response.ok().entity(booking.getId()).build();
 	}
+	*/
     
     @PUT
     @Path("/complete")
