@@ -30,7 +30,7 @@ public class FlightManagementService {
     @Inject
     private FlightManager management;
 
-    @Path("/all")
+    @Path("/")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAll() {

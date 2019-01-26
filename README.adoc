@@ -1,14 +1,22 @@
 # MicroProfile LRA demo: DevConf 2019.cz
 
-# Quickie...
+## Quickie...
 
-* `docker run -p 8080:8080 docker.io/ochaloup/lra-coordinator:devconf2019`
-* `docker run -e TARGET_CALL='http://localhost:8888' -p 8180:8080 docker.io/ochaloup/devconf2019`
+* `docker network create lra`
+* `docker run -p 8080:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
+* `docker run --rm -p 8180:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019`
+** to debug: `-p 5005:5005 -e JAVA_DEBUG=true`
+* `curl -i -XPOST http://localhost:8180/book'
 
-# notes
+With Ruby
 
-* to access docker to localhots: `--add-host="localhost:192.168.65.1"`
-* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dthorntail.http.port=8180 -Dtarget.call=http://localhost:8888 -Dlra.http.host=localhost -Dlra.http.port=8080 -Dswarm.bind.address=10.200.138.81`
+* `git clone https://github.com/adamruzicka/microservice-ruby-dc2019.git` (or https://github.com/ochaloup/microservice-ruby-dc2019)
+* `cd microservice-ruby-dc2019`
+* `docker-compose build`
+* `docker-compose up`
+** or running in 3 different shells: `docker-compose up coordinator`, `docker-compose up lraservice`, `docker-compose up ruby-api`
+
+## What is this about
 
 This is a small demo project which shows
 basic capabilities of MicroProfile Long Running Action.
@@ -72,6 +80,8 @@ several endpoints
 * `cd devconf2019-lra`
 * `mvn package`
 * `java -jar target/devconf2019-flightbooking-thorntail.jar -Dinit.csv=./flight.data -Dlra.http.host=localhost -Dlra.http.port=8180`
+* TODO: ...
+* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dthorntail.http.port=8180 -Dtarget.call=http://localhost:8888 -Dlra.http.host=localhost -Dlra.http.port=8080 -Dinit.csv=./flight.data -Dswarm.bind.address=10.200.138.81`
 
 NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooked`
       and those data is loaded during app startup

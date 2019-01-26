@@ -59,7 +59,7 @@ public class FlightBookingService {
     @Inject @ConfigProperty(name = "target.call", defaultValue = "")
     private String targetCall;
 
-    @LRA(cancelOn = Status.NOT_FOUND)
+    @LRA(cancelOn = {Status.EXPECTATION_FAILED, Status.NOT_FOUND})
     @POST
     @Path("/")
     @Produces(MediaType.TEXT_PLAIN)
@@ -76,14 +76,18 @@ public class FlightBookingService {
         log.infof("Booking '%s' was created", booking);
 
         if(targetCall != null && !targetCall.isEmpty()) {
-            Response r = ClientBuilder.newClient().target(targetCall)
-                    .request(MediaType.TEXT_PLAIN).post(Entity.text("book me!"));
+            Response response = ClientBuilder.newClient().target(targetCall)
+                    .request(MediaType.TEXT_PLAIN).post(Entity.text("book the hotel for: " + booking.getName()));
+            if(response.getStatus() != Status.OK.getStatusCode()) {
+                throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
+                        .entity(String.format("Call to %s failed", targetCall))
+                        .type("text/plain").build());
+            }
         }
 
         return Response.ok(booking.getId()).build();
     }
 
-    /*
     @LRA(cancelOn = Status.NOT_FOUND)
     @POST
     @Path("/create")
@@ -103,7 +107,6 @@ public class FlightBookingService {
 
 		return Response.ok().entity(booking.getId()).build();
 	}
-	*/
     
     @PUT
     @Path("/complete")

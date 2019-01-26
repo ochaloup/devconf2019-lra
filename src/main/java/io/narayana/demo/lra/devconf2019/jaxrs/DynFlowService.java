@@ -1,7 +1,6 @@
 package io.narayana.demo.lra.devconf2019.jaxrs;
 
 import javax.inject.Inject;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -34,7 +33,7 @@ public class DynFlowService {
         Flight flight = flightManager.getByDate(FlightManagementService.parseDate("2019-01-27")).get(0);
         Booking booking = new Booking()
                 .setFlight(flight)
-                .setStatus(BookingStatus.BOOKED);
+                .setStatus(BookingStatus.BOOKED)
                 .setName("The great guy " + (nameCounter++));
         bookingManager.save(booking);
         log.infof("Created booking: '%s'", booking);

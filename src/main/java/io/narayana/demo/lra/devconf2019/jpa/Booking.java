@@ -60,8 +60,9 @@ public class Booking implements Serializable {
         return status;
     }
 
-    public void setStatus(BookingStatus status) {
+    public Booking setStatus(BookingStatus status) {
         this.status = status;
+        return this;
     }
 
     public String getLraId() {
