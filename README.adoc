@@ -6,7 +6,7 @@
 * `docker run -p 8080:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
 * `docker run --rm -p 8180:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019`
 ** to debug: `-p 5005:5005 -e JAVA_DEBUG=true`
-* `curl -i -XPOST http://localhost:8180/book'
+* `curl -i -XPOST http://localhost:8080/book'
 * `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book/create --data '{"date":"2019-01-27", "name": "Mr. LRA", "target.call": "http://ruby-api:4567/fail"}'`
 
 With Ruby

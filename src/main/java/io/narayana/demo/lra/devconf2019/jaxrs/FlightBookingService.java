@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.inject.Inject;
+import javax.resource.spi.RetryableUnavailableException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -76,7 +77,7 @@ public class FlightBookingService {
                 "The great guy " + (counter++), Optional.ofNullable(targetCallConfig));
     }
 
-    @LRA(cancelOn = Status.NOT_FOUND)
+    @LRA(cancelOn = {Status.EXPECTATION_FAILED, Status.NOT_FOUND})
     @POST
     @Path("/create")
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -108,8 +109,10 @@ public class FlightBookingService {
             Response response = ClientBuilder.newClient().target(targetCall.get())
                     .request(MediaType.TEXT_PLAIN)
                     .post(Entity.text("book the hotel for: " + booking.getName()));
-            log.debugf("Response code from call '%s' was %s", targetCall.get(), response.getStatus());
-            if(response.getStatus() != Status.OK.getStatusCode()) {
+            String entityBody = response.readEntity(String.class);
+            int returnCode = response.getStatus();
+            log.infof("Response code from call '%s' was %s, entity: %s", targetCall.get(), returnCode, entityBody);
+            if(returnCode != Status.OK.getStatusCode() || entityBody.contains("rejected")) {
                 throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
                         .entity(String.format("Call to %s failed", targetCall))
                         .type("text/plain").build());
