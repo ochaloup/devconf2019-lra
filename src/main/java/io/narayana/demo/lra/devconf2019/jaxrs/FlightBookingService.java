@@ -57,7 +57,8 @@ public class FlightBookingService {
     private LRAClient lraClient;
 
     @Inject @ConfigProperty(name = "target.call", defaultValue = "")
-    private String targetCall;
+    private String targetCallConfig;
+
 
     @LRA(cancelOn = {Status.EXPECTATION_FAILED, Status.NOT_FOUND})
     @POST
@@ -65,19 +66,49 @@ public class FlightBookingService {
     @Produces(MediaType.TEXT_PLAIN)
     public Response book(String jsonData) {
         log.infof("Making booking with LRA id '%s' and calling '%s'",
-                lraClient.getCurrent().toExternalForm(), targetCall);
+                lraClient.getCurrent().toExternalForm(), targetCallConfig);
 
-        Flight flight = flightManager.getByDate(FlightManagementService.parseDate("2019-01-27")).get(0);
+        String dateToFind = "2019-01-27";
+        Flight matchingFlight = flightManager
+                .getByDate(FlightManagementService.parseDate(dateToFind)).get(0);
+
+        return processBooking(matchingFlight,
+                "The great guy " + (counter++), Optional.ofNullable(targetCallConfig));
+    }
+
+    @LRA(cancelOn = Status.NOT_FOUND)
+    @POST
+    @Path("/create")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response bookWithData(String jsonData) {
+        log.infof("Booking with data '%s' as part of LRA id '%s'",
+                jsonData, lraClient.getCurrent().toExternalForm());
+
+        Map<String,String> jsonMap = parseJson(jsonData);
+        Flight matchingFlight = findMatchingFlightForBooking(jsonMap);
+
+        String targetCallFromJson = jsonMap.get("target.call");
+
+        return processBooking(matchingFlight,
+                jsonMap.get("name"), Optional.ofNullable(targetCallFromJson));
+	}
+
+    public Response processBooking(Flight matchingFlight, String name, Optional<String> targetCall) {
+        // save booking
         Booking booking = new Booking()
-                .setFlight(flight)
-                .setName("The great guy " + (counter++))
+                .setFlight(matchingFlight)
+                .setName(name)
+                .setStatus(BookingStatus.IN_PROGRESS)
                 .setLraId(lraClient.getCurrent().toExternalForm());
         bookingManager.save(booking);
         log.infof("Booking '%s' was created", booking);
 
-        if(targetCall != null && !targetCall.isEmpty()) {
-            Response response = ClientBuilder.newClient().target(targetCall)
-                    .request(MediaType.TEXT_PLAIN).post(Entity.text("book the hotel for: " + booking.getName()));
+        // calling next service
+        if(targetCall.isPresent()) {
+            Response response = ClientBuilder.newClient().target(targetCall.get())
+                    .request(MediaType.TEXT_PLAIN)
+                    .post(Entity.text("book the hotel for: " + booking.getName()));
+
             if(response.getStatus() != Status.OK.getStatusCode()) {
                 throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
                         .entity(String.format("Call to %s failed", targetCall))
@@ -88,26 +119,6 @@ public class FlightBookingService {
         return Response.ok(booking.getId()).build();
     }
 
-    @LRA(cancelOn = Status.NOT_FOUND)
-    @POST
-    @Path("/create")
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response createBooking(String jsonData) {
-        log.infof("Booking with data '%s' as part of LRA id '%s'",
-                jsonData, lraClient.getCurrent().toExternalForm());
-
-        Map<String,String> jsonMap = parseJson(jsonData);
-        Flight matchingFlight = findMatchingFlightForBooking(jsonMap);
-
-        Booking booking = new Booking()
-                .setFlight(matchingFlight)
-                .setName(jsonMap.get("name"))
-                .setLraId(lraClient.getCurrent().toExternalForm());
-        bookingManager.save(booking);
-
-		return Response.ok().entity(booking.getId()).build();
-	}
-    
     @PUT
     @Path("/complete")
     @Produces(MediaType.APPLICATION_JSON)
@@ -115,7 +126,7 @@ public class FlightBookingService {
     public Response completeWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
         log.info("Completing...");
         boolean wasBooked = confirmBooking(lraId);
-        log.infof("LRA ID '%s' complete call called", lraId);
+        log.infof("LRA ID '%s' was completed", lraId);
         CompensatorStatus completeStatus = wasBooked ? CompensatorStatus.Completed : CompensatorStatus.FailedToComplete;
         return Response.ok(completeStatus.name()).build();
     }
