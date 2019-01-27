@@ -65,12 +65,12 @@ public class FlightBookingService {
     @Path("/")
     @Produces(MediaType.TEXT_PLAIN)
     public Response book(String jsonData) {
-        log.infof("Making booking with LRA id '%s' and calling '%s'",
-                lraClient.getCurrent().toExternalForm(), targetCallConfig);
-
         String dateToFind = "2019-01-27";
         Flight matchingFlight = flightManager
                 .getByDate(FlightManagementService.parseDate(dateToFind)).get(0);
+
+        log.infof("Making booking with LRA id '%s' and calling '%s'",
+                lraClient.getCurrent().toExternalForm(), targetCallConfig);
 
         return processBooking(matchingFlight,
                 "The great guy " + (counter++), Optional.ofNullable(targetCallConfig));
@@ -81,13 +81,13 @@ public class FlightBookingService {
     @Path("/create")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response bookWithData(String jsonData) {
-        log.infof("Booking with data '%s' as part of LRA id '%s'",
-                jsonData, lraClient.getCurrent().toExternalForm());
-
         Map<String,String> jsonMap = parseJson(jsonData);
         Flight matchingFlight = findMatchingFlightForBooking(jsonMap);
 
         String targetCallFromJson = jsonMap.get("target.call");
+
+        log.infof("Booking with data '%s' as part of LRA id '%s' and calling '%s'",
+                jsonData, lraClient.getCurrent().toExternalForm(), targetCallFromJson);
 
         return processBooking(matchingFlight,
                 jsonMap.get("name"), Optional.ofNullable(targetCallFromJson));
@@ -108,7 +108,7 @@ public class FlightBookingService {
             Response response = ClientBuilder.newClient().target(targetCall.get())
                     .request(MediaType.TEXT_PLAIN)
                     .post(Entity.text("book the hotel for: " + booking.getName()));
-
+            log.debugf("Response code from call '%s' was %s", targetCall.get(), response.getStatus());
             if(response.getStatus() != Status.OK.getStatusCode()) {
                 throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
                         .entity(String.format("Call to %s failed", targetCall))
@@ -121,7 +121,7 @@ public class FlightBookingService {
 
     @PUT
     @Path("/complete")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     @Complete
     public Response completeWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
         log.info("Completing...");
@@ -139,7 +139,7 @@ public class FlightBookingService {
         log.info("Compensating...");
         undoBooking(lraId);
         log.warnf("LRA ID '%s' was compensated", lraId);
-        return Response.ok().build();
+        return Response.ok(CompensatorStatus.Compensated.name()).build();
     }
 
     @Path("/all")
