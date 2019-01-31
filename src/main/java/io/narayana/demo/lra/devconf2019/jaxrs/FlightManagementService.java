@@ -45,12 +45,32 @@ import org.jboss.logging.Logger;
 import io.narayana.demo.lra.devconf2019.FlightManager;
 import io.narayana.demo.lra.devconf2019.jpa.Flight;
 
+/**
+ * A REST API to manipulate with flights ({@link Flight} entity).
+ */
 @Path("/flights")
 public class FlightManagementService {
     private static final Logger log = Logger.getLogger(FlightManager.class);
 
     @Inject
     private FlightManager management;
+
+    /**
+     * Parsing date of format <code>YYYY-MM-DD</code> for a {@link Date}
+     * that could be used in the application.
+     *
+     * @param stringDate  date in format {@value Flight#DATE_FORMAT}
+     * @return {@link Date} object of parsed string of stringDate parameter
+     */
+    public static Date parseDate(String stringDate) {
+        try {
+            return new SimpleDateFormat(Flight.DATE_FORMAT).parse(stringDate);
+        } catch (ParseException pe) {
+            throw new WebApplicationException(pe, Response.status(Response.Status.PRECONDITION_FAILED)
+                    .entity(String.format("Cannot parse parameter date '%s' for the date format '" + Flight.DATE_FORMAT + "'", stringDate))
+                    .type("text/plain").build());
+        }
+    }
 
     @Path("/")
     @GET
@@ -92,7 +112,7 @@ public class FlightManagementService {
         management.save(flight);
         return Response.ok().entity(flight.getId()).build();
     }
-    
+
     @Path("/{id}")
     @DELETE
     public Response deleteFlight(@PathParam("id") String flightId) throws NotFoundException {
@@ -114,16 +134,6 @@ public class FlightManagementService {
             throw new WebApplicationException(nfe, Response.status(Response.Status.PRECONDITION_FAILED)
                 .entity(String.format("The path parameter '%s' of flight id can't be converted to number",flightId))
                 .type("text/plain").build());
-        }
-    }
-
-    public static Date parseDate(String stringDate) {
-        try {
-            return new SimpleDateFormat(Flight.DATE_FORMAT).parse(stringDate);
-        } catch (ParseException pe) {
-            throw new WebApplicationException(pe, Response.status(Response.Status.PRECONDITION_FAILED)
-                    .entity(String.format("Cannot parse parameter date '%s' for the date format '" + Flight.DATE_FORMAT + "'", stringDate))
-                    .type("text/plain").build());
         }
     }
 }

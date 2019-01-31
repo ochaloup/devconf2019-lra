@@ -32,6 +32,9 @@ import javax.transaction.Transactional;
 
 import io.narayana.demo.lra.devconf2019.jpa.Flight;
 
+/**
+ * Data manipulation for {@link Flight} entity.
+ */
 @Dependent
 @Transactional
 public class FlightManager {

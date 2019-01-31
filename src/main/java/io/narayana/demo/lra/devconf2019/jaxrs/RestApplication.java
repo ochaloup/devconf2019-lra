@@ -25,6 +25,9 @@ package io.narayana.demo.lra.devconf2019.jaxrs;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
+/**
+ * This is the REST application!
+ */
 @ApplicationPath("/")
 public class RestApplication extends Application {
 }

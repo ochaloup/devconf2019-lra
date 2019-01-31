@@ -62,7 +62,11 @@ import io.narayana.demo.lra.devconf2019.jpa.Booking;
 import io.narayana.demo.lra.devconf2019.jpa.BookingStatus;
 import io.narayana.demo.lra.devconf2019.jpa.Flight;
 
-
+/**
+ * <p>
+ * Demo REST api showing the usage of <a href="https://github.com/eclipse/microprofile-lra">LRA</a>.
+ * <p>
+ */
 @Path("/book")
 public class FlightBookingService {
     private static final Logger log = Logger.getLogger(FlightBookingService.class);
@@ -79,50 +83,60 @@ public class FlightBookingService {
     @Inject @ConfigProperty(name = "target.call", defaultValue = "")
     private String targetCallConfig;
 
+    /**
+     * <p>
+     * Creating LRA, making booking by saving it to database and calling
+     * a next service if <code>target.call</code> property is defined.
+     * <p>
+     * Expecting JSON data in format:
+     * <code>{"date":"2019-01-27", "name": "Name of passenger", "target.call": "http://ruby-api:4567/fail"}</code>
+     */
     @LRA
     @POST
     @Path("/create")
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response bookWithData(String jsonData) {
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response bookWithData(String jsonData) {
+        // getting json to map
         Map<String,String> jsonMap = parseJson(jsonData);
+
+        // getting a flight that is requested based date provided in json
         Flight matchingFlight = findMatchingFlightForBooking(jsonMap);
 
+        // will we be calling a next service?
         String targetCallFromJson = jsonMap.get("target.call");
 
         log.infof("Booking with data '%s' as part of LRA id '%s' and calling '%s'",
                 jsonData, lraClient.getCurrent().toExternalForm(), targetCallFromJson);
 
-        return processBooking(matchingFlight,
-                jsonMap.get("name"), Optional.ofNullable(targetCallFromJson));
-	}
-
-    public Response processBooking(Flight matchingFlight, String name, Optional<String> targetCall) {
-        // save booking
+        // do database changes
         Booking booking = new Booking()
                 .setFlight(matchingFlight)
-                .setName(name)
+                .setName(jsonMap.get("name"))
                 .setStatus(BookingStatus.IN_PROGRESS)
                 .setLraId(lraClient.getCurrent().toExternalForm());
         bookingManager.save(booking);
         log.infof("Booking '%s' was created", booking);
 
         // calling next service
-        if(targetCall.isPresent()) {
-            Response response = ClientBuilder.newClient().target(targetCall.get())
+        if(targetCallFromJson != null && !targetCallFromJson.isEmpty()) {
+            Response response = ClientBuilder.newClient().target(targetCallFromJson)
                     .request(MediaType.TEXT_PLAIN)
-                    .post(Entity.text("book the hotel for: " + booking.getName()));
+                    .post(Entity.text("calling to book a hotel for person: " + booking.getName()));
             String entityBody = response.readEntity(String.class);
             int returnCode = response.getStatus();
             if(entityBody.contains("rejected")) {
                 // ruby app (https://github.com/adamruzicka/microservice-ruby-dc2019) returns 200/OK but body contains info
-               log.warnf("Response code from call '%s' was %s, entity: %s", targetCall.get(), returnCode, entityBody);
-               lraClient.cancelLRA(lraClient.getCurrent()); 
+               log.warnf("Response code from call '%s' was %s, entity: %s", targetCallFromJson, returnCode, entityBody);
+               lraClient.cancelLRA(lraClient.getCurrent());
             }
         }
 
         return Response.ok(booking.getId()).build();
     }
 
+    /**
+     * LRA complete
+     */
     @PUT
     @Path("/complete")
     @Produces(MediaType.TEXT_PLAIN)
@@ -135,17 +149,24 @@ public class FlightBookingService {
         return Response.ok(completeStatus.name()).build();
     }
 
+    /**
+     * LRA compensate
+     */
     @PUT
     @Path("/compensate")
     @Produces(MediaType.APPLICATION_JSON)
     @Compensate
     public Response compensateWork(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) throws NotFoundException, JsonProcessingException {
         log.info("Compensating...");
-        undoBooking(lraId);
+        cancelBooking(lraId);
         log.warnf("LRA ID '%s' was compensated", lraId);
         return Response.ok(CompensatorStatus.Compensated.name()).build();
     }
 
+    /**
+     * When somebody want to list all the booking.
+     * In fact just listing database by <code>SELECT *</code>.
+     */
     @Path("/all")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -154,6 +175,7 @@ public class FlightBookingService {
         if(log.isDebugEnabled()) log.debugf("All flights: %s", allBookings);
         return Response.ok().entity(allBookings).build();
     }
+
 
     @SuppressWarnings("unchecked")
     private Map<String,String> parseJson(String jsonData) {
@@ -164,6 +186,8 @@ public class FlightBookingService {
                 log.debugf("The incoming body '%s' was parsed for JSON format '%s'", jsonData, jsonMap);
             return jsonMap;
         } catch (IOException ioe) {
+            log.errorf("Cannot parse the provided body '%s' to JSON format", jsonData);
+            lraClient.cancelLRA(lraClient.getCurrent());
             throw new WebApplicationException(ioe, Response.status(Response.Status.PRECONDITION_FAILED)
                     .entity(String.format("Cannot parse the provided body '%s' to JSON format", jsonData))
                     .type("text/plain").build());
@@ -172,6 +196,7 @@ public class FlightBookingService {
 
     private Flight findMatchingFlightForBooking(Map<String,String> jsonMap) {
         if(jsonMap.get("date") == null || jsonMap.get("name") == null) {
+            lraClient.cancelLRA(lraClient.getCurrent());
             throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
                     .entity(String.format("Invalid format of json data '%s' as does not contain fields 'date' and/or 'name'", jsonMap))
                     .type("text/plain").build());
@@ -181,6 +206,7 @@ public class FlightBookingService {
         List<Flight> foundFlights = flightManager.getByDate(parsedDate);
         if(foundFlights == null || foundFlights.isEmpty()) {
             log.errorf("No flight at date '%s' is available", parsedDate);
+            lraClient.cancelLRA(lraClient.getCurrent());
             throw new NotFoundException(String.format("No flight at date '%s' is available", parsedDate));
         }
 
@@ -188,6 +214,7 @@ public class FlightBookingService {
                 .filter(f -> f.getNumberOfSeats() > f.getBookedSeats()).findFirst();
         if(!matchingFlight.isPresent()) {
             log.errorf("There is no flight which would not be already occupied at the date '%s'", parsedDate);
+            lraClient.cancelLRA(lraClient.getCurrent());
             throw new NotFoundException("There is no flight which would not be already occupied at the date " + parsedDate);
         }
 
@@ -215,7 +242,7 @@ public class FlightBookingService {
         return wasSuccesful;
     }
 
-    private void undoBooking(String lraId) {
+    private void cancelBooking(String lraId) {
         List<Booking> byLraBookings = bookingManager.getByLraId(lraId);
         for(Booking booking: byLraBookings) {
             booking.setStatus(BookingStatus.CANCELED);

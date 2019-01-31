@@ -31,6 +31,9 @@ import javax.transaction.Transactional;
 
 import io.narayana.demo.lra.devconf2019.jpa.Booking;
 
+/**
+ * Data manipulation for {@link Booking} entity.
+ */
 @Dependent
 @Transactional
 public class BookingManager {

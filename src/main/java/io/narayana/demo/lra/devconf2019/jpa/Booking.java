@@ -63,7 +63,7 @@ public class Booking implements Serializable {
     private String name;
     private BookingStatus status = BookingStatus.IN_PROGRESS;
     private String lraId;
-    
+
     public int getId() {
         return id;
     }
