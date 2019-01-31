@@ -1,3 +1,25 @@
+/*
+ * JBoss, Home of Professional Open Source.
+ * Copyright 2019, Red Hat, Inc., and individual contributors
+ * as indicated by the @author tags. See the copyright.txt file in the
+ * distribution for a full listing of individual contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
+
 package io.narayana.demo.lra.devconf2019.jaxrs;
 
 
@@ -9,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.inject.Inject;
-import javax.resource.spi.RetryableUnavailableException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -23,7 +44,6 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.lra.annotation.Compensate;
@@ -46,7 +66,6 @@ import io.narayana.demo.lra.devconf2019.jpa.Flight;
 @Path("/book")
 public class FlightBookingService {
     private static final Logger log = Logger.getLogger(FlightBookingService.class);
-    private static volatile int counter = 1;
 
     @Inject
     private BookingManager bookingManager;
@@ -60,24 +79,7 @@ public class FlightBookingService {
     @Inject @ConfigProperty(name = "target.call", defaultValue = "")
     private String targetCallConfig;
 
-
-    @LRA(cancelOn = {Status.EXPECTATION_FAILED, Status.NOT_FOUND})
-    @POST
-    @Path("/")
-    @Produces(MediaType.TEXT_PLAIN)
-    public Response book(String jsonData) {
-        String dateToFind = "2019-01-27";
-        Flight matchingFlight = flightManager
-                .getByDate(FlightManagementService.parseDate(dateToFind)).get(0);
-
-        log.infof("Making booking with LRA id '%s' and calling '%s'",
-                lraClient.getCurrent().toExternalForm(), targetCallConfig);
-
-        return processBooking(matchingFlight,
-                "The great guy " + (counter++), Optional.ofNullable(targetCallConfig));
-    }
-
-    @LRA(cancelOn = {Status.EXPECTATION_FAILED, Status.NOT_FOUND})
+    @LRA
     @POST
     @Path("/create")
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -111,11 +113,10 @@ public class FlightBookingService {
                     .post(Entity.text("book the hotel for: " + booking.getName()));
             String entityBody = response.readEntity(String.class);
             int returnCode = response.getStatus();
-            log.infof("Response code from call '%s' was %s, entity: %s", targetCall.get(), returnCode, entityBody);
-            if(returnCode != Status.OK.getStatusCode() || entityBody.contains("rejected")) {
-                throw new WebApplicationException(Response.status(Response.Status.PRECONDITION_FAILED)
-                        .entity(String.format("Call to %s failed", targetCall))
-                        .type("text/plain").build());
+            if(entityBody.contains("rejected")) {
+                // ruby app (https://github.com/adamruzicka/microservice-ruby-dc2019) returns 200/OK but body contains info
+               log.warnf("Response code from call '%s' was %s, entity: %s", targetCall.get(), returnCode, entityBody);
+               lraClient.cancelLRA(lraClient.getCurrent()); 
             }
         }
 
