@@ -93,9 +93,8 @@ public class FlightBookingService {
      */
     @LRA
     @POST
-    @Path("/create")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response bookWithData(String jsonData) {
+    public Response book(String jsonData) {
         // getting json to map
         Map<String,String> jsonMap = parseJson(jsonData);
 
@@ -119,19 +118,52 @@ public class FlightBookingService {
 
         // calling next service
         if(targetCallFromJson != null && !targetCallFromJson.isEmpty()) {
-            Response response = ClientBuilder.newClient().target(targetCallFromJson)
-                    .request(MediaType.TEXT_PLAIN)
-                    .post(Entity.text("calling to book a hotel for person: " + booking.getName()));
-            String entityBody = response.readEntity(String.class);
-            int returnCode = response.getStatus();
-            if(entityBody.contains("rejected")) {
+            Response response = null;
+            boolean shouldBeCanceled = false;
+            try {
+                response = ClientBuilder.newClient().target(targetCallFromJson)
+                        .request(MediaType.TEXT_PLAIN)
+                        .post(Entity.text("calling to book a hotel for person: " + booking.getName()));
+
+                String entityBody = response.readEntity(String.class);
+                int returnCode = response.getStatus();
+                log.infof("Response code from call '%s' was %s, entity: %s", targetCallFromJson, returnCode, entityBody);
+
                 // ruby app (https://github.com/adamruzicka/microservice-ruby-dc2019) returns 200/OK but body contains info
-               log.warnf("Response code from call '%s' was %s, entity: %s", targetCallFromJson, returnCode, entityBody);
-               lraClient.cancelLRA(lraClient.getCurrent());
+                if(entityBody.contains("rejected")) shouldBeCanceled = true;
+            } catch (Exception e) {
+                log.errorf(e, "Failed to call '%s': %s", targetCallFromJson, e.getMessage());
+                shouldBeCanceled = true;
             }
+            if(shouldBeCanceled) lraClient.cancelLRA(lraClient.getCurrent());
         }
 
         return Response.ok(booking.getId()).build();
+    }
+
+    /**
+     * Enpoint expecting incoming LRA ID header. It search for existing booking with the LRA id
+     * and if there is such it creates new booking.
+     */
+    @LRA
+    @POST
+    @Path("/in-chain")
+    public Response bookInChain(@HeaderParam(LRAClient.LRA_HTTP_HEADER) String lraId) {
+        if(lraId == null || lraId.isEmpty())
+            throw new WebApplicationException("LRA ID header [" + LRAClient.LRA_HTTP_HEADER + "] is empty", Response.Status.PRECONDITION_FAILED);
+        Booking byLraBooking = bookingManager.getFirstByLraId(lraId);
+        if(byLraBooking == null) {
+            log.warnf("There is no LRA id '%s' in the database. No updates done.", lraId);
+            return Response.status(Response.Status.NOT_FOUND).entity(
+                    Entity.text("No LRA with id " + lraId + " found for bookings")).build();
+        } else {
+            Booking booking = new Booking()
+                .setFlight(byLraBooking.getFlight())
+                .setName(byLraBooking.getName())
+                .setStatus(BookingStatus.IN_PROGRESS)
+                .setLraId(lraId);
+            return Response.ok(booking.getId()).build();
+        }
     }
 
     /**

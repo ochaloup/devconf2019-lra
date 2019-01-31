@@ -63,4 +63,10 @@ public class BookingManager {
             .setParameter("lraId", lraId)
             .getResultList();
     }
+
+    public Booking getFirstByLraId(String lraId) {
+        List<Booking> bookings = getByLraId(lraId);
+        if(bookings != null && !bookings.isEmpty()) return bookings.get(0);
+        return null;
+    }
 }
