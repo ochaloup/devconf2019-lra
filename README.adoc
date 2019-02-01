@@ -16,13 +16,15 @@ which are called by coordinator to announce the outcome of the LRA.
 Some more information about Narayana LRA processing could be found at article
 http://jbossts.blogspot.com/2017/12/narayana-lra-implementation-of-saga.html
 
-## How to run
+## How to run this demo application
 
 To running this you will need
 
 * build LRA specification
 * run LRA coordinator
 * build and start this demo application
+
+NOTE: there are prepared docker images for easier startup, https://github.com/ochaloup/devconf2019-lra#running-this-example-with-prepared-docker-images[see later down here]
 
 [NOTE]
 ====
@@ -31,7 +33,6 @@ there is no official release of the spec and it's necessary to build the spec AP
 locally at your computer.
 ====
 
-NOTE: there are prepared docker images for easier startup, see later down here
 
 ### LRA API compilation
 
@@ -53,37 +54,51 @@ Narayana project in way
 * `java -jar rts/lra/lra-coordinator/target/lra-coordinator-swarm.jar -Dswarm.http.port=8180`
 
 Otherwise the easiest way is to use the docker to run the coordinator
-(coordinator is under dockerhub at https://hub.docker.com/r/jbosstm/lra-coordinator).
+(coordinator is at dockerhub at https://hub.docker.com/r/jbosstm/lra-coordinator).
 
-* `docker run -p 8080:8080 jbosstm/lra-coordinator`
+* `docker run -p 8180:8080 jbosstm/lra-coordinator`
 
 To run coordinator with showing `debug`/`trace` messages run with
 `-Dswarm.logging=DEBUG` in case of `java -jar` command or
 set environment variable `-e LOG_LEVEL="DEBUG"`.
 
 
-### Running this demo
+### Running the demo application
 
 When LRA API is installed as maven dependency to local mvn repository
 and the coordinator is running you can run this demo app.
 The demo application starts as a Thorntail application which exposes
-several endpoints 
+endpoit to book a flight.
 
 * `git clone https://github.com/ochaloup/devconf2019-lra.git`
 * `cd devconf2019-lra`
 * `mvn package`
 * `java -jar target/devconf2019-flightbooking-thorntail.jar -Dinit.csv=./flight.data -Dlra.http.host=localhost -Dlra.http.port=8180`
-* TODO: ...
-* `java -jar target/devconf2019-flightbooking-thorntail.jar -Dthorntail.http.port=8180 -Dtarget.call=http://localhost:8888 -Dlra.http.host=localhost -Dlra.http.port=8080 -Dinit.csv=./flight.data -Dswarm.bind.address=10.200.138.81`
 
 NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooked`
-      and those data is loaded during app startup
+      and those data is loaded during application startup
 
-#### Using REST endpoints for Flight
+#### How to book a flight and start LRA
 
-`curl -D -i -XGET http://localhost:8080/flights/all | jq`::
+Hit endpoint while define JSON. The json says: 'please book a flight at date 2019-01-27 for name "Mr. LRA". Then call next service in chain at addressdefined by "target.call" parameter'.
+
+```bash
+curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book --data '{"date":"2019-01-27", "name": "Mr. LRA", "target.call": "http://localhost:8080/book/in-chain"}'
+```
+
+If you don't want to call any other service in chain and let LRA being to run just on that one service use
+
+```bash
+curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book --data '{"date":"2019-01-27", "name": "Mr. LRA"}'
+```
+
+For listing all available bookings run `curl -XGET http://localhost:8080/book/all | jq`.
+
+#### Managing flights record as they are
+
+`curl -XGET http://localhost:8080/flights | jq`::
   show all available flights
-`curl -D -i -XGET http://localhost:8080/flights/2 | jq`::
+`curl -XGET http://localhost:8080/flights/2 | jq`::
   get flight entity searched by its id
 `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/flights/add --data '{"date":"2018-01-31", "numberOfSeats":100, "bookedSeats": 99}'`::
   adding new flight to database
@@ -92,15 +107,8 @@ NOTE: the `flight.data` is csv file of format `date<yyyy-MM-dd>;seats;seatsBooke
 `curl -i -XGET http://localhost:8080/flights/date/2018-01-03`::
   searching for flight by a date
 
-#### Using REST endpoints for Booking
 
-`curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book --data '{"date":"2018-01-01", "name": "Franta Vomacka"}'`::
-  book a flight
-`curl -i -XGET http://localhost:8080/book/all`::
-  get all bookings
-
-
-## Communicating with coordinator with `curl` commands
+## LRA Coordinator : Communicating with coordinator with `curl` commands
 
 NOTE: expecting the coordinator is started at port `8180`. Either with docker `-p 8180:8080`
       or by WildFly Swarm port definition `swarm.http.port`
@@ -163,14 +171,13 @@ To find out status of LRA use `/status` `GET` call to coordinator like
 
 `curl -i -XGET http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/status`
 
-## Quickie...
+# Running this example with prepared docker images
 
 * `docker network create lra`
-* `docker run -p 8080:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
-* `docker run --rm -p 8180:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019`
+* `docker run -p 8180:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
+* `docker run --rm -p 8080:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019:presentation`
 ** to debug: `-p 5005:5005 -e JAVA_DEBUG=true`
-* `curl -i -XPOST http://localhost:8080/book'
-* `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book/create --data '{"date":"2019-01-27", "name": "Mr. LRA", "target.call": "http://ruby-api:4567/fail"}'`
+* `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book/create --data '{"date":"2019-01-27", "name": "Mr. LRA"}'`
 
 With Ruby
 
@@ -180,4 +187,3 @@ With Ruby
 * `docker-compose up`
 ** or running in 3 different shells: `docker-compose up coordinator`, `docker-compose up lraservice`, `docker-compose up ruby-api`
 
-## What is this about
