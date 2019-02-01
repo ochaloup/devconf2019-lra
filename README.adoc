@@ -1,48 +1,40 @@
 # MicroProfile LRA demo: DevConf 2019.cz
 
-## Quickie...
-
-* `docker network create lra`
-* `docker run -p 8080:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
-* `docker run --rm -p 8180:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019`
-** to debug: `-p 5005:5005 -e JAVA_DEBUG=true`
-* `curl -i -XPOST http://localhost:8080/book'
-* `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book/create --data '{"date":"2019-01-27", "name": "Mr. LRA", "target.call": "http://ruby-api:4567/fail"}'`
-
-With Ruby
-
-* `git clone https://github.com/adamruzicka/microservice-ruby-dc2019.git` (or https://github.com/ochaloup/microservice-ruby-dc2019)
-* `cd microservice-ruby-dc2019`
-* `docker-compose build`
-* `docker-compose up`
-** or running in 3 different shells: `docker-compose up coordinator`, `docker-compose up lraservice`, `docker-compose up ruby-api`
-
-## What is this about
-
 This is a small demo project which shows
-basic capabilities of MicroProfile Long Running Action.
-That's specification based on the Saga pattern
-which is designed to provide transactional guarantees
-for microservice architecture.
+basic capabilities of MicroProfile Long Running Action (abbreviated to LRA).
+Base concept of transaction handling of the LRA specification is https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf[Saga pattern].
+Saga pattern is designed to provide transactional guarantees for long running transactions
+which is a good fit for the microservice architecture.
 
-The LRA is based on HTTP-REST communication.
-It expects a LRA HTTP coordination endpoints to be available.
-In case of http://narayana.io[Narayana] implementation of the specification
-there is provided a LRA coordinator which manages the LRA lifecicle.
-Application enlists itself to the coordinator while
-exposing REST endpoints. The LRA coordinator uses those application's endpoints
-to inform about outcome of the LRA processing.
+LRA is based on HTTP-REST communication.
+Our implementation in http://narayana.io[Narayana] expects a LRA HTTP coordination endpoints to be available.
+
+The Narayana LRA coordinator is responsible to manage LRA lifecycle.
+Application exposes REST endpoints `compensate` and `complete`
+which are called by coordinator to announce the outcome of the LRA.
 
 Some more information about Narayana LRA processing could be found at article
 http://jbossts.blogspot.com/2017/12/narayana-lra-implementation-of-saga.html
 
 ## How to run
 
+To running this you will need
+
+* build LRA specification
+* run LRA coordinator
+* build and start this demo application
+
+[NOTE]
+====
+As the https://github.com/eclipse/microprofile-lra[LRA specification] is not a finalized (January 2019)
+there is no official release of the spec and it's necessary to build the spec API as `-SNAPSHOT`
+locally at your computer.
+====
+
+NOTE: there are prepared docker images for easier startup, see later down here
+
 ### LRA API compilation
 
-The https://github.com/eclipse/microprofile-lra[LRA specification] is not a finalized (January 2019).
- The CR releases for testing are hopefully near from now. But for testing is necessary to build
- snapshot in current days.
 
 * `git clone https://github.com/eclipse/microprofile-lra`
 * `cd microprofile-lra`
@@ -171,3 +163,21 @@ To find out status of LRA use `/status` `GET` call to coordinator like
 
 `curl -i -XGET http://localhost:8080/lra-coordinator/0_ffff0a000002_7009eb01_5c463d32_22/status`
 
+## Quickie...
+
+* `docker network create lra`
+* `docker run -p 8080:8080 --rm --name coordinator --hostname coordinator --net lra docker.io/ochaloup/lra-coordinator:devconf2019`
+* `docker run --rm -p 8180:8080 -e TARGET_CALL="" -e LRA_ENLIST_BASE_URI="http://lraservice:8080/"  --name lraservice --hostname lraservice  --net lra docker.io/ochaloup/devconf2019`
+** to debug: `-p 5005:5005 -e JAVA_DEBUG=true`
+* `curl -i -XPOST http://localhost:8080/book'
+* `curl -i --header "Content-Type: application/json" -XPOST http://localhost:8080/book/create --data '{"date":"2019-01-27", "name": "Mr. LRA", "target.call": "http://ruby-api:4567/fail"}'`
+
+With Ruby
+
+* `git clone https://github.com/adamruzicka/microservice-ruby-dc2019.git` (or https://github.com/ochaloup/microservice-ruby-dc2019)
+* `cd microservice-ruby-dc2019`
+* `docker-compose build`
+* `docker-compose up`
+** or running in 3 different shells: `docker-compose up coordinator`, `docker-compose up lraservice`, `docker-compose up ruby-api`
+
+## What is this about

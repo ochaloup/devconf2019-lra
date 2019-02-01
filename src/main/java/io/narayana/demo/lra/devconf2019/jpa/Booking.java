@@ -106,7 +106,7 @@ public class Booking implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("[%d] passenger name: %s, go by flight: '%d,%s', booking status: %s",
+        return String.format("[%d] passenger: %s, by flight: '%d,%s', status: %s",
                 id, name, flight.getId(), flight.getDateFormated(), status);
     }
 

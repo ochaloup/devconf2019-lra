@@ -104,7 +104,7 @@ public class FlightBookingService {
         // will we be calling a next service?
         String targetCallFromJson = jsonMap.get("target.call");
 
-        log.infof("Booking with data '%s' as part of LRA id '%s' and calling '%s'",
+        log.infof("Booking with data '%s' as part of LRA id '%s', trying to call at '%s'",
                 jsonData, lraClient.getCurrent().toExternalForm(), targetCallFromJson);
 
         // do database changes
@@ -162,6 +162,8 @@ public class FlightBookingService {
                 .setName(byLraBooking.getName())
                 .setStatus(BookingStatus.IN_PROGRESS)
                 .setLraId(lraId);
+            bookingManager.save(booking);
+            log.infof("Booking in-chain '%s' was created", booking);
             return Response.ok(booking.getId()).build();
         }
     }
